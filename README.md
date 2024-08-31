@@ -2,7 +2,7 @@
 
 ## Overview
 
-This bash script automates the execution of the `fio` tool for storage benchmarking and system performance analysis. It handles multiple iterations of fio tests and extracts important performance metrics such as **IOPS** and **bandwidth** from the output, saving both the raw and filtered data to log files. The filtered results are saved in a CSV format, making them easy to analyze in Excel or other spreadsheet tools.
+This bash script automates the execution of the `fio` tool for storage benchmarking and system performance analysis. It handles multiple iterations of Fio tests and extracts important performance metrics such as **IOPS** and **bandwidth** from the output, saving the raw and filtered data to log files. The filtered results are saved in a CSV format, making them easy to analyze in Excel or other spreadsheet tools.
 
 ## Features
 
@@ -11,7 +11,7 @@ This bash script automates the execution of the `fio` tool for storage benchmark
 - Filters and extracts key performance metrics (IOPS, Bandwidth).
 - Saves filtered results in CSV format for easy analysis in Excel.
 - Supports multiple iterations of the test.
-- Checks if the `jq` JSON parser is installed, and provides a fallback parsing method using `grep`, `awk`, and `sed` if `jq` is not available.
+- Checks if the `jq` JSON parser is installed, and provides a fallback parsing method using `grep`, `awk`, and `sed` if `jq` is unavailable.
 - Asks for user confirmation before overwriting existing log files.
 - Includes versioning for easy tracking of script versions.
 
@@ -22,7 +22,7 @@ This bash script automates the execution of the `fio` tool for storage benchmark
   sudo apt-get install fio    # On Debian/Ubuntu
   sudo yum install fio        # On CentOS/RHEL
 
-## Mannually use fio
+## Manually use fio
 sudo fio -rw=randread -bs=4k --direct=1 --filename=/nvme2/fio.bin --size=10G --numjobs=1 --ioengine=libaio --iodepth=64 -group_reporting -name=randread  
 
 sudo fio -rw=read -bs=128k --direct=1 --filename=/dev/nvme0n1 --size=20G --numjobs=1 --ioengine=libaio --iodepth=32 -group_reporting -name=read  
