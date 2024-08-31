@@ -1,0 +1,13 @@
+global]
+ioengine=libaio           # I/O engine type (asynchronous I/O)
+direct=1                  # Perform direct I/O, bypassing cache
+rw=readwrite              # Read and write workload (can be 'read', 'write', 'randread', 'randwrite', etc.)
+bs=4k                     # Block size (4 KB in this example)
+numjobs=4                 # Number of threads/jobs to run
+runtime=60                # Test duration (60 seconds in this example)
+time_based                # Run the job for the specified runtime
+group_reporting           # Report IOPS/bandwidth for all jobs as a group
+
+[job1]
+filename=/dev/sda         # The storage device or file to test
+size=20G 

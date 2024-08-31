@@ -1,0 +1,14 @@
+[global]
+rw=randread                   # Sequential read workload
+bs=128k                   # Block size of 128 KB
+direct=1                  # Direct I/O, bypassing cache
+filename=./test.bin      # Target device (in this case, the NVMe drive)
+size=10M                  # Test file size is 20 GB
+numjobs=1                 # Use 1 job (single thread)
+ioengine=libaio           # I/O engine: asynchronous I/O
+iodepth=32                # Queue depth of 32
+group_reporting           # Grouped reporting of IOPS and bandwidth
+
+[read_test]
+name=randread               # Job name
+
