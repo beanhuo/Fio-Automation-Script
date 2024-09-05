@@ -10,5 +10,6 @@ iodepth=32                # Queue depth of 32
 group_reporting           # Grouped reporting of IOPS and bandwidth
 
 [read_test]
-name=write                # Job name
+name=write                # Job 
+offset_increment=10M      #offset increment
 
