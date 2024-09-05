@@ -11,4 +11,5 @@ group_reporting           # Grouped reporting of IOPS and bandwidth
 
 [read_test]
 name=read               # Job name
+offset_increment=10M      #offset increment
 
