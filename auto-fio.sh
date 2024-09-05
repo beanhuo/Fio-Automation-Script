@@ -47,6 +47,7 @@ fio_job_file=$1
 iterations=$2
 base_file_name=$3
 output_folder=${4:-.}  # Default to current directory if no folder is specified
+user_offset=${5:-}     # Optional user-specified offset
 
 # Automatically generate raw log file and filtered CSV file names
 raw_log_file="${output_folder}/${base_file_name}_raw.log"
@@ -59,6 +60,27 @@ if command -v jq &> /dev/null; then
     echo "'jq' is available, will use it for parsing."
 else
     echo "'jq' is not available, will use grep/awk/sed for parsing."
+fi
+
+# Extract file size from the FIO job descriptor
+file_size=$(grep -Eo 'size=[0-9]+[KMG]' "$fio_job_file" | awk -F= '{print $2}')
+if [ -z "$file_size" ]; then
+    echo "Error: Could not extract file size from the FIO job descriptor."
+    exit 1
+fi
+
+# Convert file size to bytes for offset calculation
+file_size_bytes=$(numfmt --from=iec "${file_size}")
+if [ $? -ne 0 ] || [ -z "$file_size_bytes" ]; then
+    echo "Error: Invalid file size in FIO job descriptor."
+    exit 1
+fi
+
+# Extract the operation type (read or write) from the FIO job descriptor
+operation=$(grep -Eo 'rw=[a-z]+' "$fio_job_file" | awk -F= '{print $2}')
+if [ -z "$operation" ]; then
+    echo "Error: Could not extract operation type from the FIO job descriptor."
+    exit 1
 fi
 
 # Check if the output folder exists and create it if it doesn't
@@ -89,13 +111,21 @@ fi
 # Write the header to the CSV file
 echo "Iteration,Operation,IOPS,Bandwidth (KB/s)" >> $filtered_csv_file
 
+
+# Set initial offset to 0
+current_offset=0
+
 # Loop control - Run 'fio' for the specified number of iterations
 for (( i=1; i<=iterations; i++ ))
 do
-    echo "Running iteration $i..."
+    echo "Running iteration $i..., offset $current_offset"
+
+    # Build the fio command, applying the offset calculated so far
+    fio_command="fio --output-format=json $fio_job_file --offset=${current_offset}"
 
     # Run fio and capture its output in JSON format
-    fio_output=$(fio --output-format=json $fio_job_file)
+    #fio_output=$(fio --output-format=json $fio_job_file)
+    fio_output=$($fio_command 2>/dev/null)
     if [ $? -ne 0 ]; then
         echo "Error: fio command failed. Skipping iteration $i."
         continue
@@ -106,35 +136,37 @@ do
     echo "$fio_output" >> $raw_log_file
     echo "" >> $raw_log_file
 
-    # If jq is available, use it
+    # Extract IOPS and bandwidth based on the operation type
     if $jq_installed; then
-        # Dynamically check if the operation is read or write
-        operation=$(echo $fio_output | jq -r '.jobs[].read | if .io_bytes > 0 then "read" else "write" end')
-
-        # Extract IOPS and bandwidth based on the operation
-        if [ "$operation" == "read" ]; then
-            iops=$(echo $fio_output | jq -r '.jobs[].read.iops')
-            bw=$(echo $fio_output | jq -r '.jobs[].read.bw')
+        if [ "$operation" == "write" ]; then
+            iops=$(echo "$fio_output" | jq -r '.jobs[].write.iops // 0')
+            bw=$(echo "$fio_output" | jq -r '.jobs[].write.bw // 0')
+        elif [ "$operation" == "read" ]; then
+            iops=$(echo "$fio_output" | jq -r '.jobs[].read.iops // 0')
+            bw=$(echo "$fio_output" | jq -r '.jobs[].read.bw // 0')
         else
-            iops=$(echo $fio_output | jq -r '.jobs[].write.iops')
-            bw=$(echo $fio_output | jq -r '.jobs[].write.bw')
+            echo "Error: Unknown operation type. Skipping iteration $i."
+            continue
         fi
     else
-        # Fallback method using grep, awk, and sed
-        if echo "$fio_output" | grep -q '"read"'; then
-            operation="read"
-            iops=$(echo "$fio_output" | grep '"iops"' | sed -n '1p' | awk -F ': ' '{print $2}' | tr -d ',')
-            bw=$(echo "$fio_output" | grep '"bw"' | sed -n '1p' | awk -F ': ' '{print $2}' | tr -d ',')
+        if [ "$operation" == "write" ]; then
+            iops=$(echo "$fio_output" | grep '"iops"' | sed -n '2p' | awk -F ': ' '{print $2}' | tr -d ',' || echo 0)
+            bw=$(echo "$fio_output" | grep '"bw"' | sed -n '2p' | awk -F ': ' '{print $2}' | tr -d ',' || echo 0)
+        elif [ "$operation" == "read" ]; then
+            iops=$(echo "$fio_output" | grep '"iops"' | sed -n '1p' | awk -F ': ' '{print $2}' | tr -d ',' || echo 0)
+            bw=$(echo "$fio_output" | grep '"bw"' | sed -n '1p' | awk -F ': ' '{print $2}' | tr -d ',' || echo 0)
         else
-            operation="write"
-            iops=$(echo "$fio_output" | grep '"iops"' | sed -n '2p' | awk -F ': ' '{print $2}' | tr -d ',')
-            bw=$(echo "$fio_output" | grep '"bw"' | sed -n '2p' | awk -F ': ' '{print $2}' | tr -d ',')
+            echo "Error: Unknown operation type. Skipping iteration $i."
+            continue
         fi
     fi
+    # Debugging: Print extracted values
+    echo "Debug: iops = '$iops', bw = '$bw'"
 
-    # Check if variables are empty
-    if [ -z "$iops" ] || [ -z "$bw" ]; then
-        echo "Error: Failed to extract IOPS or bandwidth. Skipping iteration $i."
+    # Check if variables are empty or non-numeric
+    #if [[ -z "$iops" || -z "$bw" ]]; then #|| ! "$iops" =~ ^[0-9]+$ || ! "$bw" =~ ^[0-9]+$ ]]; then
+    if [[ -z "$iops" || -z "$bw" || ! "$iops" =~ ^[0-9]+(\.[0-9]+)?$ || ! "$bw" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        echo "Error: Failed to extract valid IOPS or bandwidth. Skipping iteration $i."
         continue
     fi
 
@@ -148,6 +180,10 @@ do
     echo "IOPS: $iops"
     echo "Bandwidth (KB/s): $bw"
     echo ""
+
+
+    # Increment the offset for the next iteration
+    current_offset=$((current_offset + file_size_bytes))
 
     # Optional: sleep between iterations if desired (adjust duration as needed)
     sleep 1
