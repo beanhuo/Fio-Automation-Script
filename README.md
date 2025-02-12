@@ -31,7 +31,7 @@ sudo fio -rw=read -bs=128k --direct=1 --filename=/dev/nvme0n1 --size=20G --numjo
 fio \
   --filename=/dev/md0  \    ## specify your disk or a file
   --direct=1  \\
-  --size=100%  \\ 
+  --size=100%  \\
   --log_avg_msec=10000 \\
   --ioengine=libaio \\
   --name disk_fill \\
