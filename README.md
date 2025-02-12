@@ -28,7 +28,7 @@ sudo fio -rw=randread -bs=4k --direct=1 --filename=/nvme2/fio.bin --size=10G --n
 sudo fio -rw=read -bs=128k --direct=1 --filename=/dev/nvme0n1 --size=20G --numjobs=1 --ioengine=libaio --iodepth=32 -group_reporting -name=read  
 
 ## Prefill disk example with fio
-fio \
+fio  \  
   --filename=/dev/md0  \    ## specify your disk or a file
   --direct=1  \\
   --size=100%  \\
