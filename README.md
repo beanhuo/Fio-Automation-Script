@@ -29,12 +29,12 @@ sudo fio -rw=read -bs=128k --direct=1 --filename=/dev/nvme0n1 --size=20G --numjo
 
 ## Prefill disk example with fio
 fio \
-  --filename=/dev/md0 \     ## specify your disk or a file
-  --direct=1 \
-  --size=100% \
-  --log_avg_msec=10000 \
-  --ioengine=libaio \
-  --name disk_fill \
-  --rw=write \
-  --bs=128k \
+  --filename=/dev/md0  \     ## specify your disk or a file
+  --direct=1  \ 
+  --size=100%  \ 
+  --log_avg_msec=10000 \ 
+  --ioengine=libaio \ 
+  --name disk_fill \ 
+  --rw=write \ 
+  --bs=128k \ 
   --iodepth=8
